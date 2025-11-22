@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="in">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vyyntage Photobooth</title>
+
+<style>
+    body { margin:0; font-family:'Poppins', sans-serif; background:#f9f5f2; color:#5a4a3b; }
+    .screen { display:none; padding:20px; text-align:center; }
+    .active { display:block; }
+    button { padding:12px 22px; margin:10px; border-radius:12px; border:none; background:#d8b89c; color:white; font-size:17px; cursor:pointer; box-shadow:0 3px 6px rgba(0,0,0,0.15); }
+    button:hover { opacity:0.85; }
+    h1, h2 { font-weight:600; }
+
+   
+    /* camera */
+    #video { width:90%; max-width:360px; border-radius:20px; }
+    #flipBtn { background:#c59bb4; }
+
+    /* countdown */
+    #countdownBox { position:relative; width:150px; height:150px; margin:20px auto; }
+    #countdownCircle { stroke:#d8b89c; stroke-width:10; fill:none; }
+    #countdownNumber { font-size:60px; font-weight:600; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); }
+
+    /* flash */
+    #flash { position:fixed; top:0; left:0; width:100%; height:100%; background:white; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+
+    /* border options */
+    .border-option { padding:12px; margin:10px; border:2px solid #ccb8a3; background:#fff5ec; border-radius:12px; display:inline-block; cursor:pointer; }
+
+    /* result */
+    #finalImage { width:60%; border-radius:18px; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
+</style>
+</head>
+<body>
+<audio id="bgm" src="https://www.fesliyanstudios.com/play-mp3/387" loop></audio>
+<div id="flash"></div>
+
+<!-- PAGE 1: OPENING -->
+<div id="page1" class="screen active">
+    <h1>Vyyntage Photobooth ✨</h1>
+    <p>Pilih layout favoritmu, abadikan moment berhargamu!</p>
+    
+    
+        </div><center>
+ <button onclick="goToPage2()" style="background:#f4c2c2; color:#5a4a3b;">Lanjut →</button>
+  </center>
+</div>
+
+<!-- PAGE 2: CAMERA SETTINGS -->
+<div id="page2" class="screen">
+    <h2>Pengaturan Kamera</h2>
+    <p>Pilih layout & countdown, mirror mode juga bisa!</p>
+
+    <button onclick="setLayout(3)">3 Layer</button>
+    <button onclick="setLayout(6)">6 Layer</button><br>
+
+    <label>Pilih countdown:</label><br>
+    <button onclick="setCountdown(3)">3s</button>
+    <button onclick="setCountdown(5)">5s</button>
+    <button onclick="setCountdown(10)">10s</button><br>
+
+    <button id="flipBtn" onclick="toggleMirror()">Mirror Mode: OFF</button><br>
+
+    <button onclick="goToPage3()">Ambil Gambar</button>
+    <button onclick="goToPage1()">Kembali</button>
+</div>
+
+<!-- PAGE 3: CAMERA & CAPTURE -->
+<div id="page3" class="screen">
+    <h2>Bersiap! 📸</h2>
+    <video id="video" autoplay playsinline></video>
+
+    <div id="countdownBox">
+        <svg width="150" height="150">
+            <circle id="countdownCircle" cx="75" cy="75" r="65" />
+        </svg>
+        <div id="countdownNumber"></div>
+    </div>
+
+    <button onclick="startCapture()">Mulai Foto</button>
+    <button onclick="returnToSettings()">Kembali</button>
+</div>
+
+<!-- PAGE 4: BORDER & RESULT -->
+<div id="page4" class="screen">
+    <h2>Pilih Background</h2>
+    <div>
+        <div class="border-option" onclick="applyBorder('nude')">Nude</div>
+        <div class="border-option" onclick="applyBorder('latte')">Latte</div>
+        <div class="border-option" onclick="applyBorder('clean')">Clean </div>
+        <div class="border-option" onclick="applyBorder('pink')">Pink</div>
+        <div class="border-option" onclick="applyBorder('cappuccino')">Cappuccino</div>
+    </div>
+    <img id="finalImage" />
+    <br>
+    <button onclick="downloadResult()">Unduh Gambar</button>
+    <button onclick="restartAll()">Kembali ke Menu</button>
+</div>
+
+<script>
+let layout = 3;
+let countdownSec = 3;
+let mirrorMode = false;
+let video, stream;
+let photos = [];
+let index = 0;
+
+function showPage(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+function goToPage1(){ showPage('page1'); }
+function goToPage2(){ showPage('page2'); }
+function goToPage3(){ showPage('page3'); startCamera(); }
+function goToPage4(){ showPage('page4'); }
+
+function setLayout(n){ layout=n; }
+function setCountdown(n){ countdownSec=n; }
+function toggleMirror(){ mirrorMode=!mirrorMode; document.getElementById('flipBtn').innerText = `Mirror Mode: ${mirrorMode? 'ON':'OFF'}`; }
+
+async function startCamera(){
+    video=document.getElementById('video');
+    stream = await navigator.mediaDevices.getUserMedia({ video:true });
+    video.srcObject=stream;
+    video.style.transform = mirrorMode ? 'scaleX(-1)' : 'scaleX(1)';
+}
+
+function returnToSettings(){ stopCamera(); showPage('page2'); }
+function stopCamera(){ if(stream) stream.getTracks().forEach(t=>t.stop()); }
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function startCapture(){ photos=[]; index=0; await captureNext(); }
+
+async function captureNext(){
+    if(index>=layout){ stopCamera(); return goToPage4(); }
+
+    let circle=document.getElementById('countdownCircle');
+    let num=document.getElementById('countdownNumber');
+
+    for(let i=countdownSec;i>0;i--){ num.innerText=i; circle.style.strokeDasharray="400"; circle.style.strokeDashoffset = 400*(i/countdownSec); await sleep(1000); }
+
+    num.innerText="";
+    flash(); shutter();
+
+    let c=document.createElement('canvas');
+    c.width=video.videoWidth;
+    c.height=video.videoHeight;
+    let ctx=c.getContext('2d');
+
+    if(mirrorMode){ ctx.scale(-1,1); ctx.drawImage(video, -c.width, 0); }
+    else ctx.drawImage(video,0,0);
+
+    photos.push(c.toDataURL());
+    index++;
+    await sleep(500);
+    captureNext();
+}
+
+function flash(){ let f=document.getElementById('flash'); f.style.opacity=1; setTimeout(()=>f.style.opacity=0,200); }
+function shutter(){ const ctx=new AudioContext(); const osc=ctx.createOscillator(); osc.type='triangle'; osc.frequency.value=1000; osc.connect(ctx.destination); osc.start(); setTimeout(()=>osc.stop(),120); }
+
+/* APPLY BORDER + GRAIN */
+function applyBorder(type){
+    const w=900, h=layout===3?1600:2400;
+    let c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    let ctx=c.getContext('2d');
+
+    const bg={ nude:'#F4CABAE6', latte:'#C6A992', clean:'#fdfff5', pink:'#F4C2C2', cappuccino:'#b39f7a' };
+    ctx.fillStyle=bg[type]||'#f7eee6';
+    ctx.fillRect(0,0,w,h);
+
+    let slot=h/layout;
+    photos.forEach((src,i)=>{
+        let im=new Image(); im.src=src;
+        im.onload=()=>{
+            ctx.drawImage(im,50, i*slot+20, w-100, slot-40);
+
+            if(i===layout-1){ addGrain(ctx,w,h); addDate(ctx,w,h); finalize(c); }
+        };
+    });
+}
+
+function addGrain(ctx,w,h){
+    let imgData=ctx.getImageData(0,0,w,h);
+    for(let i=0;i<imgData.data.length;i+=4){ let n=(Math.random()*30)-15; imgData.data[i]+=n; imgData.data[i+1]+=n; imgData.data[i+2]+=n; }
+    ctx.putImageData(imgData,0,0);
+}
+
+function addDate(ctx,w,h){
+    const d=new Date(); let t=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    ctx.font='42px Poppins'; ctx.fillStyle='#6b4f3d'; ctx.fillText(t,50,h-30);
+}
+
+function finalize(canvas){ document.getElementById('finalImage').src=canvas.toDataURL('image/jpeg'); }
+
+function downloadResult(){ let a=document.createElement('a'); a.href=document.getElementById('finalImage').src; a.download='Alvyphotobooth.jpg'; a.click(); }
+function restartAll(){ location.reload(); }
+</script>
+</body>
+
+
+
+</html>
